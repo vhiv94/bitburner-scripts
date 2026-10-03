@@ -100,3 +100,4 @@ export default async function main(ns: NS){
   ns.printRaw(<MyContent name="Your name"></MyContent>);
 }
 ```
+"# bitburner-scripts" 
