@@ -1,7 +1,7 @@
-import { GrowInfo, HackInfo, LogInfo, WeakenInfo } from "./LogInfo.ts";
-import { Target } from "./Target.ts";
-import { Host } from "./Host.ts";
-import { GrowParams, HackParams, WeakenParams } from "./ExecParams.ts";
+import { GrowInfo, HackInfo, LogInfo, WeakenInfo } from "./LogInfo.js";
+import { Target } from "./Target.js";
+import { Host } from "./Host.js";
+import { ExecParams } from "./ExecParams.js";
 
 export async function main(ns: NS) {
   // constants
@@ -9,21 +9,12 @@ export async function main(ns: NS) {
   const host = new Host(ns, (ns.args[1] as string) || ns.getHostname());
   const allowShotgun = host.name === "home";
 
-  const weakenParamsBase: WeakenParams = {
-    targetName: target.name,
-    kind: "weaken",
-  };
-  const growParamsBase: GrowParams = { targetName: target.name, kind: "grow" };
-  const hackParamsBase: HackParams = {
-    targetName: target.name,
-    kind: "hack",
-    port: ns.pid,
-  };
-  ns.clearPort(ns.pid);
+  const port = ns.pid;
+  ns.clearPort(port);
 
   // prep
   if (!target.hasRootAccess) {
-    ns.exec("gain-root-access.ts", host.name, 1, target.name);
+    ns.exec("gain-root-access.js", host.name, 1, target.name);
     await ns.sleep(10);
   }
   while (target.securityLevel > target.securityMin) await weaken();
@@ -45,12 +36,7 @@ export async function main(ns: NS) {
 
     // execute
     const securityPreWeaken = target.securityLevel;
-    ns.exec(
-      "workers.ts",
-      host.name,
-      weakenThreads,
-      JSON.stringify(weakenParamsBase),
-    );
+    target.weaken(host.name, weakenThreads, 0);
     await ns.sleep(target.weakenTime + 5);
 
     // log results
@@ -60,7 +46,7 @@ export async function main(ns: NS) {
       target: target,
       decrement: securityPreWeaken - securityPostWeaken,
     };
-    ns.exec("logger.ts", "msg-dump", 1, JSON.stringify(weakenInfo));
+    ns.exec("logger.js", "msg-dump", 1, JSON.stringify(weakenInfo));
 
     // update dashboard
   }
@@ -76,15 +62,9 @@ export async function main(ns: NS) {
     const [growDelay, weakenDelay, sleep] = target.growDelays;
 
     // execute
-    const growParams = JSON.stringify({ ...growParamsBase, delay: growDelay });
-    const weakenParams = JSON.stringify({
-      ...weakenParamsBase,
-      delay: weakenDelay,
-    });
-
     const moneyPreGrowth = target.moneyAvailable;
-    ns.exec("workers.ts", host.name, growThreads, growParams);
-    ns.exec("workers.ts", host.name, weakenThreads, weakenParams);
+    target.grow(host.name, growThreads, growDelay);
+    target.weaken(host.name, weakenThreads, weakenDelay);
     await ns.sleep(sleep);
 
     // log result
@@ -95,7 +75,7 @@ export async function main(ns: NS) {
       increase: growth,
       percentage: growth / target.moneyMax,
     };
-    ns.exec("logger.ts", "msg-dump", 1, JSON.stringify(growInfo));
+    ns.exec("logger.js", "msg-dump", 1, JSON.stringify(growInfo));
 
     // update dashboard
   }
@@ -107,12 +87,8 @@ export async function main(ns: NS) {
       weakenHThreads,
       growThreads,
       weakenGThreads,
-      totalThreads,
+      batchCount,
     ] = target.getHackThreadCounts(host.threadsAvailable, host.cores);
-
-    const batchIndex = allowShotgun
-      ? Math.floor(host.threadsAvailable / totalThreads)
-      : 0;
 
     // calculate delays
     const [hackDelay, weakenHDelay, growDelay, weakenGDelay, sleep] =
@@ -120,30 +96,13 @@ export async function main(ns: NS) {
 
     // execute
 
-    for (let i = 0; i <= batchIndex; i++) {
-      const hackParams = JSON.stringify({
-        ...hackParamsBase,
-        delay: hackDelay + i * 20,
-      });
-      const weakenHParams = JSON.stringify({
-        ...weakenParamsBase,
-        delay: weakenHDelay + i * 20,
-      });
-      const growParams = JSON.stringify({
-        ...growParamsBase,
-        delay: growDelay + i * 20,
-      });
-      const weakenGParams = JSON.stringify({
-        ...weakenParamsBase,
-        delay: weakenGDelay + i * 20,
-      });
-
-      ns.exec("workers.ts", host.name, hackThreads, hackParams);
-      ns.exec("workers.ts", host.name, weakenHThreads, weakenHParams);
-      ns.exec("workers.ts", host.name, growThreads, growParams);
-      ns.exec("workers.ts", host.name, weakenGThreads, weakenGParams);
+    for (let i = 0; i < batchCount; i++) {
+      target.hack(host.name, hackThreads, hackDelay + i * 20, port);
+      target.weaken(host.name, weakenHThreads, weakenHDelay + i * 20);
+      target.grow(host.name, growThreads, growDelay + i * 20);
+      target.weaken(host.name, weakenGThreads, weakenGDelay + i * 20);
     }
-    await ns.sleep(sleep + batchIndex * 20);
+    await ns.sleep(sleep + batchCount * 20);
 
     // log results
     const stolen: number = ns.readPort(ns.pid) ?? 0;
@@ -153,7 +112,7 @@ export async function main(ns: NS) {
       stolen: stolen,
       rate: (stolen / sleep) * 1000,
     };
-    ns.exec("logger.ts", "msg-dump", 1, JSON.stringify(hackInfo));
+    ns.exec("logger.js", "msg-dump", 1, JSON.stringify(hackInfo));
 
     // update dashboard
   }

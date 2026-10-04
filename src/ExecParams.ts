@@ -1,19 +1,25 @@
-interface ExecParamsBase {
+interface ExecParams {
   targetName: string;
-  delay?: number;
+  delay: number;
+  port?: number;
 }
 
-export interface WeakenParams extends ExecParamsBase {
-  kind: "weaken";
-}
+// interface ExecParamsBase {
+//   targetName: string;
+//   delay?: number;
+// }
 
-export interface GrowParams extends ExecParamsBase {
-  kind: "grow";
-}
+// export interface WeakenParams extends ExecParamsBase {
+//   kind: "weaken";
+// }
 
-export interface HackParams extends ExecParamsBase {
-  kind: "hack";
-  port: number;
-}
+// export interface GrowParams extends ExecParamsBase {
+//   kind: "grow";
+// }
 
-export type ExecParams = WeakenParams | GrowParams | HackParams;
+// export interface HackParams extends ExecParamsBase {
+//   kind: "hack";
+//   port: number;
+// }
+
+// export type ExecParams = WeakenParams | GrowParams | HackParams;

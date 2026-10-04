@@ -1,3 +1,5 @@
+import { ExecParams } from "./ExecParams";
+
 export class Target {
   _ns: NS;
   name: string;
@@ -124,10 +126,36 @@ export class Target {
       tCounts[3] = this._getWeakenThreadsMax("grow", tCounts[2]);
       total = tCounts.reduce((acc, cur) => acc + cur, 0);
     } while (total > threadsAvailable);
-    tCounts[4] = total;
+    tCounts[4] = Math.floor(threadsAvailable / total);
     return tCounts;
   }
+
+  hack(host: string, threads: number, delay: number, port: number): void {
+    const params: ExecParams = {
+      targetName: this.name,
+      delay: delay,
+      port: port,
+    };
+    this._ns.exec("workers/hack.js", host, threads, JSON.stringify(params));
+  }
+    
+  grow(host: string, threads: number, delay: number): void {
+    const params: ExecParams = {
+      targetName: this.name,
+      delay: delay,
+    };
+    this._ns.exec("workers/grow.js", host, threads, JSON.stringify(params));
+  }
+
+  weaken(host: string, threads: number, delay: number): void {
+    const params: ExecParams = {
+      targetName: this.name,
+      delay: delay,
+    };
+    this._ns.exec("workers/weaken.js", host, threads, JSON.stringify(params));
+  }
 }
+
 
 type func = "hack" | "grow";
 
@@ -137,7 +165,7 @@ type HackThreadCounts = [
   weakenHT: number,
   growT: number,
   weakenGT: number,
-  total: number,
+  batchCount: number,
 ];
 
 type GrowDelays = [growD: number, weakenD: number, sleep: number];
