@@ -37,7 +37,9 @@ export async function main(ns: NS) {
     // execute
     const securityPreWeaken = target.securityLevel;
     target.weaken(host.name, weakenThreads, 0);
-    await ns.sleep(target.weakenTime + 5);
+    if (target.moneyAvailable < target.moneyMax * 0.95) await grow(5);
+    else if (host.threadsAvailable > 10) await hack(5);
+    else await ns.sleep(target.weakenTime + 5);
 
     // log results
     const securityPostWeaken = target.securityLevel;
@@ -51,7 +53,7 @@ export async function main(ns: NS) {
     // update dashboard
   }
 
-  async function grow() {
+  async function grow(initialDelay: number = 0) {
     // calculate threads
     const [growThreads, weakenThreads] = target.getGrowThreadCounts(
       host.threadsAvailable,
@@ -59,13 +61,14 @@ export async function main(ns: NS) {
     );
 
     // calculate delays
-    const [growDelay, weakenDelay, sleep] = target.growDelays;
+    const [growDelay, weakenDelay, sleep] = target.growDelays.map((val) => val + initialDelay);
 
     // execute
     const moneyPreGrowth = target.moneyAvailable;
     target.grow(host.name, growThreads, growDelay);
     target.weaken(host.name, weakenThreads, weakenDelay);
-    await ns.sleep(sleep);
+    if (host.threadsAvailable > 10) await hack(10);
+    else await ns.sleep(sleep);
 
     // log result
     const growth = target.moneyAvailable - moneyPreGrowth;
@@ -80,7 +83,7 @@ export async function main(ns: NS) {
     // update dashboard
   }
 
-  async function hack() {
+  async function hack(initialDelay: number = 0) {
     // calculate threads
     const [
       hackThreads,
@@ -97,10 +100,10 @@ export async function main(ns: NS) {
     // execute
 
     for (let i = 0; i < batchCount; i++) {
-      target.hack(host.name, hackThreads, hackDelay + i * 20, port);
-      target.weaken(host.name, weakenHThreads, weakenHDelay + i * 20);
-      target.grow(host.name, growThreads, growDelay + i * 20);
-      target.weaken(host.name, weakenGThreads, weakenGDelay + i * 20);
+      target.hack(host.name, hackThreads, hackDelay + initialDelay + i * 20, port);
+      target.weaken(host.name, weakenHThreads, weakenHDelay + initialDelay + i * 20);
+      target.grow(host.name, growThreads, growDelay + initialDelay + i * 20);
+      target.weaken(host.name, weakenGThreads, weakenGDelay + initialDelay + i * 20);
     }
     await ns.sleep(sleep + batchCount * 20);
 
