@@ -1,4 +1,5 @@
 import { ExecParams } from "./ExecParams";
+import { NS } from "../NetscriptDefinitions";
 
 export class Target {
   _ns: NS;
@@ -112,11 +113,11 @@ export class Target {
   }
 
   getHackThreadCounts(
+    money: number = this.moneyAvailable,
     threadsAvailable: number,
     cores: number,
   ): HackThreadCounts {
     const tCounts: HackThreadCounts = [1, 1, 1, 1, 0];
-    const money = this.moneyAvailable;
     let total: number;
     tCounts[0] = this._getHackThreadsMax(money) + 1;
     do {
@@ -130,13 +131,12 @@ export class Target {
     return tCounts;
   }
 
-  hack(host: string, threads: number, delay: number, port: number): void {
+  weaken(host: string, threads: number, delay: number): void {
     const params: ExecParams = {
       targetName: this.name,
       delay: delay,
-      port: port,
     };
-    this._ns.exec("workers/hack.js", host, threads, JSON.stringify(params));
+    this._ns.exec("workers/weaken.js", host, threads, JSON.stringify(params));
   }
     
   grow(host: string, threads: number, delay: number): void {
@@ -147,12 +147,13 @@ export class Target {
     this._ns.exec("workers/grow.js", host, threads, JSON.stringify(params));
   }
 
-  weaken(host: string, threads: number, delay: number): void {
+  hack(host: string, threads: number, delay: number, port: number): void {
     const params: ExecParams = {
       targetName: this.name,
       delay: delay,
+      port: port,
     };
-    this._ns.exec("workers/weaken.js", host, threads, JSON.stringify(params));
+    this._ns.exec("workers/hack.js", host, threads, JSON.stringify(params));
   }
 }
 

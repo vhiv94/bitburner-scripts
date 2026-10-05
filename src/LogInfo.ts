@@ -1,7 +1,9 @@
-import { Target } from "./Target";
-
 interface LogInfoBase {
-  target: Target;
+  targetName: string;
+  moneyAvailable: number;
+  moneyPercentage: number;
+  securityLevel: number;
+  securityOffset: number;
 }
 
 export interface WeakenInfo extends LogInfoBase {

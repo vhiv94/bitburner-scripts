@@ -1,13 +1,14 @@
-import { GrowInfo, HackInfo, LogInfo, WeakenInfo } from "./LogInfo.js";
-import { Target } from "./Target.js";
-import { Host } from "./Host.js";
-import { ExecParams } from "./ExecParams.js";
+import { GrowInfo, HackInfo, WeakenInfo } from "LogInfo";
+import { Target } from "Target";
+import { Host } from "Host";
+import { NS } from "../NetscriptDefinitions";
 
 export async function main(ns: NS) {
   // constants
   const target = new Target(ns, (ns.args[0] as string) || ns.getHostname());
   const host = new Host(ns, (ns.args[1] as string) || ns.getHostname());
-  const allowShotgun = host.name === "home";
+  const flags = ns.flags([["s", false]]);
+  const allowShotgun = flags.s as boolean;
 
   const port = ns.pid;
   ns.clearPort(port);
@@ -17,18 +18,57 @@ export async function main(ns: NS) {
     ns.exec("gain-root-access.js", host.name, 1, target.name);
     await ns.sleep(10);
   }
-  while (target.securityLevel > target.securityMin) await weaken();
-  while (target.moneyAvailable < target.moneyMax) await grow();
   const prepped = performance.now();
 
   // main loop
   while (true) {
-    if (target.securityLevel > target.securityMin) await weaken();
-    else if (target.moneyAvailable < target.moneyMax * 0.95) await grow();
-    else await hack();
+    await shotgunMerged();
+    // if (target.securityLevel > target.securityMin) await weaken();
+    // else if (target.moneyAvailable < target.moneyMax * 0.95) await grow();
+    // else await hack();
   }
 
   //  *end of execution*  //
+
+  async function shotgunMerged() {
+      const runTime = target.weakenTime;
+      let execIndex = 0;
+
+      // weaken prep
+      if (target.securityLevel > target.securityMin) {
+        const weakenThreads = target.getWeakenThreadCount(host.threadsAvailable);
+        target.weaken(host.name, weakenThreads, 0);
+        execIndex++;
+      }
+      // grow prep
+      if (target.moneyAvailable < target.moneyMax * 0.95) {
+        const [growThreads, weakenThreads] = target.getGrowThreadCounts(
+          host.threadsAvailable,
+          host.cores,
+        );
+        const [growDelay, weakenDelay] = target.growDelays;
+        target.grow(host.name, growThreads, growDelay + execIndex * 5);
+        target.weaken(host.name, weakenThreads, weakenDelay + execIndex * 5);
+        execIndex++;
+      }
+
+      // batch hack
+      const [
+        hackThreads,
+        weakenHThreads,
+        growThreads,
+        weakenGThreads,
+        batchCount,
+      ] = target.getHackThreadCounts(target.moneyMax, host.threadsAvailable, host.cores);
+      const [hackDelay, weakenHDelay, growDelay, weakenGDelay, sleep] = target.hackDelays.map((val) => val + execIndex * 5);
+      for (let i = 0; i < batchCount; i++) {
+        target.hack(host.name, hackThreads, hackDelay + i * 20, port);
+        target.weaken(host.name, weakenHThreads, weakenHDelay + i * 20);
+        target.grow(host.name, growThreads, growDelay + i * 20);
+        target.weaken(host.name, weakenGThreads, weakenGDelay + i * 20);
+      }
+      await ns.sleep(sleep + batchCount * 20);
+  }
 
   async function weaken() {
     // calculate threads
@@ -45,8 +85,12 @@ export async function main(ns: NS) {
     const securityPostWeaken = target.securityLevel;
     const weakenInfo: WeakenInfo = {
       kind: "weaken",
-      target: target,
+      targetName: target.name,
       decrement: securityPreWeaken - securityPostWeaken,
+      moneyAvailable: target.moneyAvailable,
+      moneyPercentage: target.moneyPercentage,
+      securityLevel: target.securityLevel,
+      securityOffset: target.securityOffset,
     };
     ns.exec("logger.js", "msg-dump", 1, JSON.stringify(weakenInfo));
 
@@ -74,9 +118,13 @@ export async function main(ns: NS) {
     const growth = target.moneyAvailable - moneyPreGrowth;
     const growInfo: GrowInfo = {
       kind: "grow",
-      target: target,
+      targetName: target.name,
       increase: growth,
       percentage: growth / target.moneyMax,
+      moneyAvailable: target.moneyAvailable,
+      moneyPercentage: target.moneyPercentage,
+      securityLevel: target.securityLevel,
+      securityOffset: target.securityOffset,
     };
     ns.exec("logger.js", "msg-dump", 1, JSON.stringify(growInfo));
 
@@ -91,32 +139,45 @@ export async function main(ns: NS) {
       growThreads,
       weakenGThreads,
       batchCount,
-    ] = target.getHackThreadCounts(host.threadsAvailable, host.cores);
+    ] = target.getHackThreadCounts(target.moneyAvailable, host.threadsAvailable, host.cores);
 
     // calculate delays
     const [hackDelay, weakenHDelay, growDelay, weakenGDelay, sleep] =
       target.hackDelays;
+    const runTime = sleep + initialDelay + batchCount * 20;
 
     // execute
-
-    for (let i = 0; i < batchCount; i++) {
+    const batchIndex = allowShotgun ? batchCount : 0;
+    for (let i = 0; i < batchIndex; i++) {
       target.hack(host.name, hackThreads, hackDelay + initialDelay + i * 20, port);
       target.weaken(host.name, weakenHThreads, weakenHDelay + initialDelay + i * 20);
       target.grow(host.name, growThreads, growDelay + initialDelay + i * 20);
       target.weaken(host.name, weakenGThreads, weakenGDelay + initialDelay + i * 20);
     }
-    await ns.sleep(sleep + batchCount * 20);
+    await ns.sleep(runTime);
 
     // log results
-    const stolen: number = ns.readPort(ns.pid) ?? 0;
+    const stolen: number = readPort(port);
     const hackInfo: HackInfo = {
       kind: "hack",
-      target: target,
+      targetName: target.name,
       stolen: stolen,
-      rate: (stolen / sleep) * 1000,
+      rate: (stolen / runTime) * 1000,
+      moneyAvailable: target.moneyAvailable,
+      moneyPercentage: target.moneyPercentage,
+      securityLevel: target.securityLevel,
+      securityOffset: target.securityOffset,
     };
     ns.exec("logger.js", "msg-dump", 1, JSON.stringify(hackInfo));
 
     // update dashboard
+  }
+  
+  function readPort(port: number): number {
+    let res: number = 0;
+    while (ns.peek(port) !== "NULL PORT DATA") {
+      res += parseFloat(ns.readPort(port));
+    }
+    return res;
   }
 }

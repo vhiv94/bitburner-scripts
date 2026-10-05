@@ -1,4 +1,4 @@
-interface ExecParams {
+export interface ExecParams {
   targetName: string;
   delay: number;
   port?: number;

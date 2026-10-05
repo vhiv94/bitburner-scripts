@@ -1,5 +1,6 @@
-import { reset, red, cyan, green, yellow, white, line } from "./constants.ts";
-import { GrowInfo, HackInfo, WeakenInfo, LogInfo } from "./LogInfo.ts";
+import { reset, red, cyan, green, yellow, white, line } from "constants";
+import { GrowInfo, HackInfo, WeakenInfo, LogInfo } from "LogInfo";
+import { NS } from "../NetscriptDefinitions";
 
 export async function main(ns: NS) {
   let info: LogInfo = JSON.parse(ns.args[0] as string);
@@ -20,17 +21,17 @@ export async function main(ns: NS) {
 }
 
 function logWeaken(ns: NS, info: WeakenInfo) {
-  let server = white + info.target.name + ":" + reset;
+  let server = white + info.targetName + ":" + reset;
   let decrement = cyan + "-" + ns.format.number(info.decrement) + reset;
-  let security = yellow + ns.format.number(info.target.securityLevel) + reset;
+  let security = yellow + ns.format.number(info.securityLevel) + reset;
   let offset: string;
-  if (info.target.securityOffset == 0) offset = "";
+  if (info.securityOffset == 0) offset = "";
   else
     offset =
       " | " +
-      (info.target.securityOffset >= 1 ? red : yellow) +
+      (info.securityOffset >= 1 ? red : yellow) +
       "+" +
-      ns.format.number(info.target.securityOffset) +
+      ns.format.number(info.securityOffset) +
       reset;
 
   ns.writePort(
@@ -42,22 +43,22 @@ function logWeaken(ns: NS, info: WeakenInfo) {
 }
 
 function LogGrow(ns: NS, info: GrowInfo) {
-  let server = white + info.target.name + ":" + reset;
+  let server = white + info.targetName + ":" + reset;
   let growth = green + "$" + ns.format.number(info.increase) + reset;
   let increase = cyan + "+" + ns.format.percent(info.percentage) + reset;
   let available =
-    green + "$" + ns.format.number(info.target.moneyAvailable) + reset;
+    green + "$" + ns.format.number(info.moneyAvailable) + reset;
   let percentage =
-    cyan + ns.format.percent(info.target.moneyPercentage) + reset;
-  let security = yellow + ns.format.number(info.target.securityLevel) + reset;
+    cyan + ns.format.percent(info.moneyPercentage) + reset;
+  let security = yellow + ns.format.number(info.securityLevel) + reset;
   let offset: string;
-  if (info.target.securityOffset == 0) offset = "";
+  if (info.securityOffset == 0) offset = "";
   else
     offset =
       " | " +
-      (info.target.securityOffset >= 1 ? red : yellow) +
+      (info.securityOffset >= 1 ? red : yellow) +
       "+" +
-      ns.format.number(info.target.securityOffset) +
+      ns.format.number(info.securityOffset) +
       reset;
 
   ns.writePort(
@@ -70,23 +71,23 @@ function LogGrow(ns: NS, info: GrowInfo) {
 }
 
 function LogHack(ns: NS, info: HackInfo) {
-  let server = white + info.target.name + ":" + reset;
+  let server = white + info.targetName + ":" + reset;
   let stolen = green + "$" + ns.format.number(info.stolen) + reset;
   let rate = green + "$" + ns.format.number(info.rate) + reset + "/s";
   let available =
-    green + "$" + ns.format.number(info.target.moneyAvailable) + reset;
+    green + "$" + ns.format.number(info.moneyAvailable) + reset;
   let percentage =
-    cyan + ns.format.percent(info.target.moneyPercentage) + reset;
+    cyan + ns.format.percent(info.moneyPercentage) + reset;
   let security =
-    yellow + ns.format.number(info.target.securityLevel || 0) + reset;
+    yellow + ns.format.number(info.securityLevel || 0) + reset;
   let offset: string;
-  if (info.target.securityOffset == 0) offset = "";
+  if (info.securityOffset == 0) offset = "";
   else
     offset =
       " | " +
-      (info.target.securityOffset >= 1 ? red : yellow) +
+      (info.securityOffset >= 1 ? red : yellow) +
       "+" +
-      ns.format.number(info.target.securityOffset) +
+      ns.format.number(info.securityOffset) +
       reset;
 
   ns.writePort(
